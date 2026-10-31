@@ -54,7 +54,7 @@ const calculatePropEdge = (prop: any, weights: typeof DEFAULT_WEIGHTS) => {
 };
 
 export default function Home() {
-  const [propsData, setPropsData] = useState([]);
+  const [propsData, setPropsData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leagueFilter, setLeagueFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
