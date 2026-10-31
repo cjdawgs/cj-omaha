@@ -59,9 +59,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // Slate Control States
-  const [leagueFilter, setLeagueFilter] = useState('ALL');
+  const [leagueFilter, setLeagueFilter] = useState('NCAA');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
   const [timeSlotFilter, setTimeSlotFilter] = useState<TimeSlot>('ALL');
+  const [topLimit, setTopLimit] = useState<number>(10); // Ranking limit state (default 10)
   
   const [searchQuery, setSearchQuery] = useState('');
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
@@ -71,7 +72,7 @@ export default function Home() {
   const [formData, setFormData] = useState({
     player: '',
     team: '',
-    league: 'NFL',
+    league: 'NCAA',
     position: 'QB',
     propType: 'Passing Yds',
     sportsbookLine: '',
@@ -120,7 +121,7 @@ export default function Home() {
         setIsSuccessToast(true);
         setTimeout(() => setIsSuccessToast(false), 3000);
         setFormData({
-          player: '', team: '', league: 'NFL', position: 'QB',
+          player: '', team: '', league: 'NCAA', position: 'QB',
           propType: 'Passing Yds', sportsbookLine: '', sportsbook: 'FanDuel',
           odds: '-110', workloadScore: 85, recentProdScore: 85, matchupScore: 80, marketScore: 80, gameTime: ''
         });
@@ -140,7 +141,7 @@ export default function Home() {
 
   const filteredProps = useMemo(() => {
     return evaluatedProps.filter((p: any) => {
-      // 1. Sport / League Filter Validation
+      // 1. Sport Filter Validation
       if (leagueFilter !== 'ALL' && p.league !== leagueFilter) return false;
 
       // 2. Date Filter Validation
@@ -163,8 +164,8 @@ export default function Home() {
       return true;
     })
     .sort((a: any, b: any) => b.edgePct - a.edgePct)
-    .slice(0, 10); // Ranks and captures strictly the Top 10 props for the selected slate
-  }, [evaluatedProps, leagueFilter, selectedDate, timeSlotFilter, searchQuery]);
+    .slice(0, topLimit); // Restricts list to the selected Top N ranking limit
+  }, [evaluatedProps, leagueFilter, selectedDate, timeSlotFilter, searchQuery, topLimit]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col">
@@ -199,83 +200,93 @@ export default function Home() {
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             {/* Slate Controls Bar */}
-              <div className="flex flex-w rap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Sport Selector */}
-                  <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
-                    {['ALL', 'NFL', 'NCAA'].map((l) => (
-                      <button
-                        key={l}
-                        onClick={() => setLeagueFilter(l)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          leagueFilter === l ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Date Picker (Defaults to Today) */}
-                  <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-                    <Calendar className="w-4 h-4 text-emerald-400" />
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="bg-transparent text-slate-200 focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Time Slot Buttons */}
-                  <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
-                    <Clock className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
-                    {(['ALL', 'EARLY', 'AFTERNOON', 'LATE'] as TimeSlot[]).map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => setTimeSlotFilter(slot)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          timeSlotFilter === slot ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        {slot === 'EARLY' ? 'Early (12-2PM)' : slot === 'AFTERNOON' ? 'Afternoon (2-7PM)' : slot === 'LATE' ? 'Late (7PM+)' : 'All Slots'}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* ⚡ AUTO-LOAD SLATE BUTTON GOES RIGHT HERE */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/slate/autoload?league=${leagueFilter}&date=${selectedDate}`);
-                        const data = await res.json();
-                        if (data.success) {
-                          // Re-fetch props to instantly update table
-                          const propsRes = await fetch('/api/props');
-                          const propsJson = await propsRes.json();
-                          if (Array.isArray(propsJson)) setPropsData(propsJson);
-                        }
-                      } catch (err) {
-                        console.error('Error auto-loading slate:', err);
-                      }
-                    }}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/20"
-                  >
-                    ⚡ Auto-Load Slate Games
-                  </button>
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Sport Selector */}
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  {['ALL', 'NFL', 'NCAA'].map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => setLeagueFilter(l)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        leagueFilter === l ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Player Search Bar */}
-                <input
-                  type="text"
-                  placeholder="Search player or team..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-xs px-3 py-2 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500 w-full sm:w-64"
-                />
+                {/* Date Picker (Defaults to Today) */}
+                <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                  <Calendar className="w-4 h-4 text-emerald-400" />
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-transparent text-slate-200 focus:outline-none"
+                  />
+                </div>
+
+                {/* Time Slot Buttons */}
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
+                  {(['ALL', 'EARLY', 'AFTERNOON', 'LATE'] as TimeSlot[]).map((slot) => (
+                    <button
+                      key={slot}
+                      onClick={() => setTimeSlotFilter(slot)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        timeSlotFilter === slot ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {slot === 'EARLY' ? 'Early (12-2PM)' : slot === 'AFTERNOON' ? 'Afternoon (2-7PM)' : slot === 'LATE' ? 'Late (7PM+)' : 'All Slots'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Top Ranking Limit Selector */}
+                <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                  <span className="text-slate-400 font-semibold">Rank Top:</span>
+                  <select
+                    value={topLimit}
+                    onChange={(e) => setTopLimit(Number(e.target.value))}
+                    className="bg-slate-900 text-emerald-400 font-bold focus:outline-none cursor-pointer rounded px-1 py-0.5"
+                  >
+                    <option value={5}>Top 5</option>
+                    <option value={10}>Top 10</option>
+                    <option value={15}>Top 15</option>
+                    <option value={20}>Top 20</option>
+                  </select>
+                </div>
+
+                {/* Auto-Load Slate Button */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/slate/autoload?league=${leagueFilter}&date=${selectedDate}`);
+                      const data = await res.json();
+                      if (data.success) {
+                        await fetchProps();
+                      }
+                    } catch (err) {
+                      console.error('Error auto-loading slate:', err);
+                    }
+                  }}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  ⚡ Auto-Load Slate Games
+                </button>
               </div>
 
-                
+              {/* Player Search Bar */}
+              <input
+                type="text"
+                placeholder="Search player or team..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-slate-950 border border-slate-800 text-xs px-3 py-2 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500 w-full sm:w-64"
+              />
+            </div>
 
             {/* Dashboard Table */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -294,7 +305,7 @@ export default function Home() {
                   {filteredProps.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center py-8 text-slate-500">
-                        No player props match the selected slate date, sport, or time slot.
+                        No player props match the selected slate date, sport, or time slot. Click "Auto-Load Slate Games" to populate.
                       </td>
                     </tr>
                   ) : (
@@ -366,7 +377,7 @@ export default function Home() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Josh Allen"
+                      placeholder="e.g. Caleb Williams"
                       value={formData.player}
                       onChange={(e) => setFormData({ ...formData, player: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"
@@ -377,7 +388,7 @@ export default function Home() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. BUF"
+                      placeholder="e.g. USC"
                       value={formData.team}
                       onChange={(e) => setFormData({ ...formData, team: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"
@@ -426,7 +437,7 @@ export default function Home() {
                       type="number"
                       step="0.5"
                       required
-                      placeholder="e.g. 265.5"
+                      placeholder="e.g. 285.5"
                       value={formData.sportsbookLine}
                       onChange={(e) => setFormData({ ...formData, sportsbookLine: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"

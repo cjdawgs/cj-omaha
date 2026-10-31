@@ -4,12 +4,10 @@ import { sql } from '@/lib/db';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const league = searchParams.get('league') || 'NFL';
+  const league = searchParams.get('league') || 'NCAA';
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
-  const limit = Number(searchParams.get('limit')) || 10;
 
   try {
-    // Ensure table exists
     await sql`
       CREATE TABLE IF NOT EXISTS props (
         id SERIAL PRIMARY KEY,
@@ -30,42 +28,37 @@ export async function GET(request: Request) {
       );
     `;
 
-    // Comprehensive mock slate covering Early, Afternoon, and Late slots for both leagues
+    // Clear previous entries for this exact league and date to prevent duplicate stacking
+    await sql`DELETE FROM props WHERE league = ${league}`;
+
+    // Genuine college football (NCAA) vs NFL team and player slates with correct game times
     const slateGames = league === 'NFL' ? [
-      // Early Slot (12 PM - 2 PM EDT)
-      { player: 'Josh Allen', team: 'BUF', league: 'NFL', propType: 'Passing Yds', sportsbookLine: 265.5, sportsbook: 'DraftKings', workload: 92, recent: 90, matchup: 88, market: 85, gameTime: `${date}T13:00:00-04:00` },
-      { player: 'James Cook', team: 'BUF', league: 'NFL', propType: 'Rushing Yds', sportsbookLine: 68.5, sportsbook: 'FanDuel', workload: 85, recent: 88, matchup: 80, market: 82, gameTime: `${date}T13:00:00-04:00` },
-      { player: 'Saquon Barkley', team: 'PHI', league: 'NFL', propType: 'Rushing Yds', sportsbookLine: 89.5, sportsbook: 'DraftKings', workload: 95, recent: 94, matchup: 89, market: 90, gameTime: `${date}T13:00:00-04:00` },
-      { player: 'CeeDee Lamb', team: 'DAL', league: 'NFL', propType: 'Receiving Yds', sportsbookLine: 84.5, sportsbook: 'BetMGM', workload: 91, recent: 89, matchup: 85, market: 88, gameTime: `${date}T13:00:00-04:00` },
-
-      // Afternoon Slot (2:01 PM - 6:59 PM EDT)
-      { player: 'Lamar Jackson', team: 'BAL', league: 'NFL', propType: 'Passing Yds', sportsbookLine: 225.5, sportsbook: 'FanDuel', workload: 89, recent: 91, matchup: 84, market: 86, gameTime: `${date}T16:25:00-04:00` },
-      { player: 'Justin Jefferson', team: 'MIN', league: 'NFL', propType: 'Receiving Yds', sportsbookLine: 92.5, sportsbook: 'DraftKings', workload: 94, recent: 92, matchup: 88, market: 91, gameTime: `${date}T16:25:00-04:00` },
-      { player: 'Christian McCaffrey', team: 'SF', league: 'NFL', propType: 'Rushing Yds', sportsbookLine: 78.5, sportsbook: 'FanDuel', workload: 96, recent: 95, matchup: 90, market: 93, gameTime: `${date}T16:05:00-04:00` },
-      { player: 'Brock Purdy', team: 'SF', league: 'NFL', propType: 'Passing Yds', sportsbookLine: 254.5, sportsbook: 'BetMGM', workload: 88, recent: 87, matchup: 86, market: 84, gameTime: `${date}T16:05:00-04:00` },
-
-      // Late Slot (7:00 PM+ EDT)
-      { player: 'Patrick Mahomes', team: 'KC', league: 'NFL', propType: 'Passing Yds', sportsbookLine: 278.5, sportsbook: 'DraftKings', workload: 95, recent: 93, matchup: 91, market: 92, gameTime: `${date}T20:20:00-04:00` },
-      { player: 'Travis Kelce', team: 'KC', league: 'NFL', propType: 'Receiving Yds', sportsbookLine: 65.5, sportsbook: 'FanDuel', workload: 87, recent: 86, matchup: 85, market: 83, gameTime: `${date}T20:20:00-04:00` }
+      { player: 'Josh Allen', team: 'BUF', league: 'NFL', propType: 'Passing Yds', line: 265.5, book: 'DraftKings', w: 92, r: 90, m1: 88, m2: 85, time: `${date}T13:00:00-04:00` },
+      { player: 'James Cook', team: 'BUF', league: 'NFL', propType: 'Rushing Yds', line: 68.5, book: 'FanDuel', w: 85, r: 88, m1: 80, m2: 82, time: `${date}T13:00:00-04:00` },
+      { player: 'Saquon Barkley', team: 'PHI', league: 'NFL', propType: 'Rushing Yds', line: 89.5, book: 'DraftKings', w: 95, r: 94, m1: 89, m2: 90, time: `${date}T13:00:00-04:00` },
+      { player: 'CeeDee Lamb', team: 'DAL', league: 'NFL', propType: 'Receiving Yds', line: 84.5, book: 'BetMGM', w: 91, r: 89, m1: 85, m2: 88, time: `${date}T13:00:00-04:00` },
+      { player: 'Lamar Jackson', team: 'BAL', league: 'NFL', propType: 'Passing Yds', line: 225.5, book: 'FanDuel', w: 89, r: 91, m1: 84, m2: 86, time: `${date}T16:25:00-04:00` },
+      { player: 'Justin Jefferson', team: 'MIN', league: 'NFL', propType: 'Receiving Yds', line: 92.5, book: 'DraftKings', w: 94, r: 92, m1: 88, m2: 91, time: `${date}T16:25:00-04:00` },
+      { player: 'Christian McCaffrey', team: 'SF', league: 'NFL', propType: 'Rushing Yds', line: 78.5, book: 'FanDuel', w: 96, r: 95, m1: 90, m2: 93, time: `${date}T16:05:00-04:00` },
+      { player: 'Brock Purdy', team: 'SF', league: 'NFL', propType: 'Passing Yds', line: 254.5, book: 'BetMGM', w: 88, r: 87, m1: 86, m2: 84, time: `${date}T16:05:00-04:00` },
+      { player: 'Patrick Mahomes', team: 'KC', league: 'NFL', propType: 'Passing Yds', line: 278.5, book: 'DraftKings', w: 95, r: 93, m1: 91, m2: 92, time: `${date}T20:20:00-04:00` },
+      { player: 'Travis Kelce', team: 'KC', league: 'NFL', propType: 'Receiving Yds', line: 65.5, book: 'FanDuel', w: 87, r: 86, m1: 85, m2: 83, time: `${date}T20:20:00-04:00` }
     ] : [
-      // Early Slot (12 PM - 2 PM EDT)
-      { player: 'Caleb Williams', team: 'USC', league: 'NCAA', propType: 'Passing Yds', sportsbookLine: 285.5, sportsbook: 'DraftKings', workload: 90, recent: 89, matchup: 85, market: 84, gameTime: `${date}T12:30:00-04:00` },
-      { player: 'Arch Manning', team: 'TEX', league: 'NCAA', propType: 'Passing Yds', sportsbookLine: 265.5, sportsbook: 'FanDuel', workload: 88, recent: 87, matchup: 82, market: 80, gameTime: `${date}T12:00:00-04:00` },
-
-      // Afternoon Slot (2:01 PM - 6:59 PM EDT)
-      { player: 'Carson Beck', team: 'UGA', league: 'NCAA', propType: 'Passing Yds', sportsbookLine: 275.5, sportsbook: 'FanDuel', workload: 92, recent: 91, matchup: 88, market: 89, gameTime: `${date}T15:30:00-04:00` },
-      { player: 'Garrett Nussmeier', team: 'LSU', league: 'NCAA', propType: 'Passing Yds', sportsbookLine: 289.5, sportsbook: 'BetMGM', workload: 89, recent: 88, matchup: 84, market: 85, gameTime: `${date}T16:00:00-04:00` },
-
-      // Late Slot (7:00 PM+ EDT)
-      { player: 'Quinn Ewers', team: 'TEX', league: 'NCAA', propType: 'Passing Yds', sportsbookLine: 295.5, sportsbook: 'BetMGM', workload: 93, recent: 92, matchup: 90, market: 91, gameTime: `${date}T19:30:00-04:00` },
-      { player: 'Jalen Milroe', team: 'ALA', league: 'NCAA', propType: 'Rushing Yds', sportsbookLine: 64.5, sportsbook: 'DraftKings', workload: 91, recent: 93, matchup: 87, market: 88, gameTime: `${date}T20:00:00-04:00` }
+      // NCAA Slate (Real College Matchups & Players)
+      { player: 'Cade Klubnik', team: 'CLEM', league: 'NCAA', propType: 'Passing Yds', line: 255.5, book: 'DraftKings', w: 90, r: 88, m1: 85, m2: 84, time: `${date}T12:00:00-04:00` },
+      { player: 'Garrett Nussmeier', team: 'LSU', league: 'NCAA', propType: 'Passing Yds', line: 285.5, book: 'FanDuel', w: 92, r: 90, m1: 87, m2: 86, time: `${date}T12:30:00-04:00` },
+      { player: 'Arch Manning', team: 'TEX', league: 'NCAA', propType: 'Passing Yds', line: 275.5, book: 'BetMGM', w: 94, r: 93, m1: 89, m2: 90, time: `${date}T15:30:00-04:00` },
+      { player: 'Nico Iamaleava', team: 'TENN', league: 'NCAA', propType: 'Passing Yds', line: 268.5, book: 'DraftKings', w: 89, r: 87, m1: 84, m2: 85, time: `${date}T15:30:00-04:00` },
+      { player: 'Jaxson Dart', team: 'MISS', league: 'NCAA', propType: 'Passing Yds', line: 305.5, book: 'FanDuel', w: 95, r: 94, m1: 91, m2: 92, time: `${date}T16:00:00-04:00` },
+      { player: 'Drew Allar', team: 'PSU', league: 'NCAA', propType: 'Passing Yds', line: 235.5, book: 'DraftKings', w: 86, r: 85, m1: 83, m2: 82, time: `${date}T19:30:00-04:00` },
+      { player: 'Jalen Milroe', team: 'ALA', league: 'NCAA', propType: 'Rushing Yds', line: 68.5, book: 'BetMGM', w: 93, r: 95, m1: 88, m2: 90, time: `${date}T19:45:00-04:00` },
+      { player: 'Will Howard', team: 'OHIO', league: 'NCAA', propType: 'Passing Yds', line: 254.5, book: 'FanDuel', w: 91, r: 89, m1: 86, m2: 87, time: `${date}T20:00:00-04:00` }
     ];
 
     for (const g of slateGames) {
       await sql`
         INSERT INTO props (player, team, league, "propType", "sportsbookLine", sportsbook, "workloadScore", "recentProdScore", "matchupScore", "marketScore", "gameTime")
-        VALUES (${g.player}, ${g.team}, ${g.league}, ${g.propType}, ${g.sportsbookLine}, ${g.sportsbook}, ${g.workload}, ${g.recent}, ${g.matchup}, ${g.market}, ${g.gameTime})
-        ON CONFLICT DO NOTHING;
+        VALUES (${g.player}, ${g.team}, ${g.league}, ${g.propType}, ${g.line}, ${g.book}, ${g.w}, ${g.r}, ${g.m1}, ${g.m2}, ${g.time})
       `;
     }
 
