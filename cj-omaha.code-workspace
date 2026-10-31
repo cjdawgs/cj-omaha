@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "../../../SherryJo_Cal_App"
+		},
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"/^\\$ollama = Test-NetConnection -ComputerName 127\\.0\\.0\\.1 -Port 11434 -WarningAction SilentlyContinue; \\$lmstudio = Test-NetConnection -ComputerName 127\\.0\\.0\\.1 -Port 1234 -WarningAction SilentlyContinue; \\[pscustomobject\\]@\\{OllamaPortOpen=\\$ollama\\.TcpTestSucceeded; LMStudioPortOpen=\\$lmstudio\\.TcpTestSucceeded\\} \\| Format-List$/": {
+				"approve": true,
+				"matchCommandLine": true
+			}
+		}
+	}
+}
