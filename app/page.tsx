@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Trophy, Sliders, PlusCircle, BarChart3, CheckCircle2
+  Trophy, Sliders, PlusCircle, BarChart3, CheckCircle2, Calendar, Clock
 } from 'lucide-react';
+import { getTodayDateString, getTimeSlotFromDate, TimeSlot } from '@/lib/slates';
 
 const DEFAULT_WEIGHTS = { workload: 40, recent: 30, matchup: 20, market: 10 };
 
@@ -56,7 +57,12 @@ const calculatePropEdge = (prop: any, weights: typeof DEFAULT_WEIGHTS) => {
 export default function Home() {
   const [propsData, setPropsData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Slate Control States
   const [leagueFilter, setLeagueFilter] = useState('ALL');
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
+  const [timeSlotFilter, setTimeSlotFilter] = useState<TimeSlot>('ALL');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [isSuccessToast, setIsSuccessToast] = useState(false);
@@ -74,7 +80,8 @@ export default function Home() {
     workloadScore: 85,
     recentProdScore: 85,
     matchupScore: 80,
-    marketScore: 80
+    marketScore: 80,
+    gameTime: ''
   });
 
   const fetchProps = async () => {
@@ -115,7 +122,7 @@ export default function Home() {
         setFormData({
           player: '', team: '', league: 'NFL', position: 'QB',
           propType: 'Passing Yds', sportsbookLine: '', sportsbook: 'FanDuel',
-          odds: '-110', workloadScore: 85, recentProdScore: 85, matchupScore: 80, marketScore: 80
+          odds: '-110', workloadScore: 85, recentProdScore: 85, matchupScore: 80, marketScore: 80, gameTime: ''
         });
         await fetchProps();
       }
@@ -133,14 +140,29 @@ export default function Home() {
 
   const filteredProps = useMemo(() => {
     return evaluatedProps.filter((p: any) => {
+      // 1. Sport Filter
       if (leagueFilter !== 'ALL' && p.league !== leagueFilter) return false;
+
+      // 2. Date Filter
+      if (selectedDate && p.gameTime) {
+        const propDate = new Date(p.gameTime).toISOString().split('T')[0];
+        if (propDate !== selectedDate) return false;
+      }
+
+      // 3. Time Slot Filter (EDT)
+      if (timeSlotFilter !== 'ALL' && p.gameTime) {
+        const slot = getTimeSlotFromDate(p.gameTime);
+        if (slot !== timeSlotFilter) return false;
+      }
+
+      // 4. Search Query Filter
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         return p.player.toLowerCase().includes(q) || p.team.toLowerCase().includes(q);
       }
       return true;
     }).sort((a: any, b: any) => b.edgePct - a.edgePct);
-  }, [evaluatedProps, leagueFilter, searchQuery]);
+  }, [evaluatedProps, leagueFilter, selectedDate, timeSlotFilter, searchQuery]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col">
@@ -155,23 +177,9 @@ export default function Home() {
             <div>
               <div className="flex items-center space-x-2">
                 <span className="font-bold text-xl tracking-tight text-white">CJ OMAHA</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">PRO ENGINE</span>
+                <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">SLATE ENGINE</span>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
-            {['ALL', 'NFL', 'NCAA'].map((l) => (
-              <button
-                key={l}
-                onClick={() => setLeagueFilter(l)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  leagueFilter === l ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {l}
-              </button>
-            ))}
           </div>
 
           <nav className="flex items-center space-x-1">
@@ -188,6 +196,63 @@ export default function Home() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
+            {/* Slate Controls Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Sport Selector */}
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  {['ALL', 'NFL', 'NCAA'].map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => setLeagueFilter(l)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        leagueFilter === l ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Date Picker (Defaults to Today) */}
+                <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                  <Calendar className="w-4 h-4 text-emerald-400" />
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-transparent text-slate-200 focus:outline-none"
+                  />
+                </div>
+
+                {/* Time Slot Buttons */}
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 ml-2 mr-1" />
+                  {(['ALL', 'EARLY', 'AFTERNOON', 'LATE'] as TimeSlot[]).map((slot) => (
+                    <button
+                      key={slot}
+                      onClick={() => setTimeSlotFilter(slot)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        timeSlotFilter === slot ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {slot === 'EARLY' ? 'Early (12-2PM)' : slot === 'AFTERNOON' ? 'Afternoon (2-7PM)' : slot === 'LATE' ? 'Late (7PM+)' : 'All Slots'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Player Search Bar */}
+              <input
+                type="text"
+                placeholder="Search player or team..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-slate-950 border border-slate-800 text-xs px-3 py-2 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500 w-full sm:w-64"
+              />
+            </div>
+
+            {/* Dashboard Table */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -204,7 +269,7 @@ export default function Home() {
                   {filteredProps.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center py-8 text-slate-500">
-                        Loading props from Neon database...
+                        No player props match the selected slate date, sport, or time slot.
                       </td>
                     </tr>
                   ) : (
@@ -259,7 +324,7 @@ export default function Home() {
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">
               <h2 className="text-xl font-bold text-white flex items-center space-x-2">
                 <PlusCircle className="w-5 h-5 text-emerald-400" />
-                <span>Add New Prop</span>
+                <span>Add Slate Player Prop</span>
               </h2>
 
               {isSuccessToast && (
@@ -308,6 +373,18 @@ export default function Home() {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Kickoff Time (EDT)</label>
+                    <input
+                      type="datetime-local"
+                      value={formData.gameTime}
+                      onChange={(e) => setFormData({ ...formData, gameTime: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-slate-400 font-semibold mb-1">Prop Type</label>
                     <input
                       type="text"
@@ -318,9 +395,6 @@ export default function Home() {
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-slate-400 font-semibold mb-1">Sportsbook Line</label>
                     <input
@@ -331,37 +405,6 @@ export default function Home() {
                       value={formData.sportsbookLine}
                       onChange={(e) => setFormData({ ...formData, sportsbookLine: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-400 font-semibold mb-1">Sportsbook</label>
-                    <input
-                      type="text"
-                      placeholder="DraftKings"
-                      value={formData.sportsbook}
-                      onChange={(e) => setFormData({ ...formData, sportsbook: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-slate-400 font-semibold mb-1">Workload Score (0-100)</label>
-                    <input
-                      type="number"
-                      value={formData.workloadScore}
-                      onChange={(e) => setFormData({ ...formData, workloadScore: Number(e.target.value) })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-400 font-semibold mb-1">Matchup Score (0-100)</label>
-                    <input
-                      type="number"
-                      value={formData.matchupScore}
-                      onChange={(e) => setFormData({ ...formData, matchupScore: Number(e.target.value) })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100"
                     />
                   </div>
                 </div>
