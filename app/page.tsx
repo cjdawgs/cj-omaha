@@ -140,16 +140,16 @@ export default function Home() {
 
   const filteredProps = useMemo(() => {
     return evaluatedProps.filter((p: any) => {
-      // 1. Sport Filter
+      // 1. Sport / League Filter Validation
       if (leagueFilter !== 'ALL' && p.league !== leagueFilter) return false;
 
-      // 2. Date Filter
+      // 2. Date Filter Validation
       if (selectedDate && p.gameTime) {
         const propDate = new Date(p.gameTime).toISOString().split('T')[0];
         if (propDate !== selectedDate) return false;
       }
 
-      // 3. Time Slot Filter (EDT)
+      // 3. Time Slot Filter Validation (Early, Afternoon, Late)
       if (timeSlotFilter !== 'ALL' && p.gameTime) {
         const slot = getTimeSlotFromDate(p.gameTime);
         if (slot !== timeSlotFilter) return false;
@@ -161,7 +161,9 @@ export default function Home() {
         return p.player.toLowerCase().includes(q) || p.team.toLowerCase().includes(q);
       }
       return true;
-    }).sort((a: any, b: any) => b.edgePct - a.edgePct);
+    })
+    .sort((a: any, b: any) => b.edgePct - a.edgePct)
+    .slice(0, 10); // Ranks and captures strictly the Top 10 props for the selected slate
   }, [evaluatedProps, leagueFilter, selectedDate, timeSlotFilter, searchQuery]);
 
   return (
